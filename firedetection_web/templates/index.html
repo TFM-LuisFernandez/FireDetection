@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Fire Detection</title>
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/index.css') }}">
+  </head>
+
+  <body>
+    <div class="gallery" id="main_content">
+        <h1>Detección de incendios con cámara térmica</h1>
+        <img src="{{ url_for('video_feed') }}">
+    </div>
+  </body>
+
+</html>

@@ -1,0 +1,1 @@
+python main_fire_detection.py -d 127.0.0.1 5000
