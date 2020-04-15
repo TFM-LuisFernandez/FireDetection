@@ -23,3 +23,12 @@ Los paquetes de Python necesarios se deben instalar de la siguiente manera:
 pip install -r requirements.txt
 ```
 Con esto habría finalizado la instalación y ya se podría usar el sistema.
+
+# Ejecución
+Para ejecutar el sistema FireDetection se debe ejecutar el sigueinte comando desde la raíz del repositorio:
+```
+start.bat
+```
+También se podría ejecutar haciendo doble click sobre el fichero **start.bat**.
+
+Una vez iniciado el contenedor Docker hay que navegar a la siguiente dirección para usar el sistema: http://127.0.0.1:5000/index.html
