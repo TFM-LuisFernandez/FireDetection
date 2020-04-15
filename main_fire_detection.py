@@ -62,7 +62,7 @@ def get_data():
         myvideos = None
         mystreaming = None
 
-        if mysource >= 1 and mysource <= 3:
+        if 1 <= mysource <= 3:
             # Si son ficheros locales, se almacenan en el directorio uploads
             files = request.files.getlist("myfiles[]")
 

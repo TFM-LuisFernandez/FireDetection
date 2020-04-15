@@ -74,7 +74,9 @@ function source() {
 }
 
 function record() {
-    if (document.getElementById('output_path') == null) {
+    if (document.getElementById('checkbox_rec') == null) {
+        document.getElementById('si').style.background = '#5b82d7';
+        document.getElementById('no').style.background = '#3263cd';
         var checkbox_rec = document.createElement('input');
         checkbox_rec.type = "checkbox";
         checkbox_rec.name = "record";
@@ -96,6 +98,23 @@ function record() {
                         document.getElementById("checkbox_create").value = 1;
                     }
                 };
+                var label_create = document.createElement('label');
+                var span_create = document.createElement('span');
+                var text_create = document.createTextNode("¿Desea crear un vídeo a partir de las imágenes generadas en la detección de incendios?");
+                // assigning attributes for the created label tag
+                label_create.id = "label_create";
+                label_create.htmlFor = "checkbox_create";
+                label_create.className = "checkbox";
+                text_create.id = "span_rec";
+                span_create.style.color = "blue";
+                text_create.id = "text_create";
+
+                span_create.appendChild(text_create);
+                label_create.appendChild(span_create);
+
+                document.getElementById("create_video").appendChild(checkbox_create);
+                document.getElementById("create_video").appendChild(label_create);
+
             } else {
                 document.getElementById("checkbox_rec").value = 1;
                 $("[id='checkbox_create']").remove();
@@ -103,24 +122,6 @@ function record() {
                 $("[id='span_create']").remove();
                 $("[id='text_create']").remove();
             }
-
-            var label_create = document.createElement('label');
-            var span_create = document.createElement('span');
-            var text_create = document.createTextNode("¿Desea crear un vídeo a partir de las imágenes generadas en la detección de incendios?");
-            // assigning attributes for the created label tag
-            label_create.id = "label_create";
-            label_create.htmlFor = "checkbox_create";
-            label_create.className = "checkbox";
-            text_create.id = "span_rec";
-            span_create.style.color = "blue";
-            text_create.id = "text_create";
-
-            span_create.appendChild(text_create);
-            label_create.appendChild(span_create);
-
-            document.getElementById("create_video").appendChild(checkbox_create);
-            document.getElementById("create_video").appendChild(label_create);
-
         };
 
         // creating label for checkbox
@@ -144,8 +145,10 @@ function record() {
 }
 
 function remove_record() {
-    if (document.getElementById('output_path') != null) {
-        // $("[id^='output_path']").remove();
+    document.getElementById('si').style.background = '#3263cd';
+    document.getElementById('no').style.background = '#5b82d7';
+
+    if (document.getElementById('checkbox_rec') != null) {
         $("[id^='checkbox']").remove();
         $("[id^='label']").remove();
         $("[id^='span']").remove();
@@ -161,11 +164,13 @@ function restart() {
         $("[id='tcp_port']").remove();
     }
 
-    if (document.getElementById('output_path') != null) {
+    if (document.getElementById('checkbox_rec') != null) {
         // $("[id^='output_path']").remove();
         $("[id^='checkbox']").remove();
         $("[id^='label']").remove();
         $("[id^='span']").remove();
         $("[id^='text']").remove();
     }
+    document.getElementById('si').style.background = '#3263cd';
+    document.getElementById('no').style.background = '#3263cd';
 }
