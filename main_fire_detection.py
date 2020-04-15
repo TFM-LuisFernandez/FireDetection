@@ -14,17 +14,20 @@ from pathlib import Path
 from typing import List
 from datetime import datetime
 from flask import Flask, render_template, Response, request, redirect, url_for, send_from_directory
+from werkzeug.utils import secure_filename
 
 # from numba import jit, cuda
 
-# initialize the output frame and a lock used to ensure thread-safe
-# exchanges of the output frames (useful for multiple browsers/tabs
-# are viewing tthe stream)
+# Inicializar el frame de salida (outputFrame) y un hilo (lock) usado para asegurar el intercambio de los frames
+# de salida (útil para múltiples navegadores/pestañas que estén viendo la visualizacion)
 outputFrame = None
 lock = threading.Lock()
-
+# Definimos directorios de subida de ficheros y de almacenamiento de resultados
 UPLOAD_FOLDER = './uploads'
-
+RESULT_FOLDER = './results'
+# Definimos las extensiones permitidas de los archivos recibidos
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'tif', 'tiff', 'bmp', 'mpg', 'mpeg', 'ogv', 'mov', 'mp4', 'avi'}
+# Comprobamos que el directorio de subida está creado y vacío
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 else:
@@ -34,64 +37,84 @@ else:
         for file in filelist:
             os.remove(os.path.join(UPLOAD_FOLDER, file))
 
-# initialize a flask object
+# Inicializamos el objeto Flask
 app = Flask(__name__, template_folder='firedetection_web/templates', static_folder='firedetection_web/static')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-@app.route("/", methods=["GET", "POST"])
+def allowed_file(filename):
+    """
+    Determina si el archivo recibido tiene una extension de imagen o video
+    """
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route("/index.html", methods=["GET", "POST"])
 def get_data():
+    """
+    Recibe del formulario, mediante POST, los parametros del algoritmo junto con los ficheros de subida
+    """
     if request.method == "POST":
+        # Recibimos el tipo de imagenes y el tipo de fuente
         mytype = int(request.form["mytype"])
         mysource = int(request.form["mysource"])
         myfolder = None
-        myvideo = None
+        myvideos = None
         mystreaming = None
 
-        print('type', mytype)
-        print('source', mysource)
-        if mysource == 1:
-            if request.files:
-                for i in range(len(request.files)):
-                    image = request.files["image" + str(i + 1)]
-                    image.save(os.path.join(app.config['UPLOAD_FOLDER'], image.filename))
+        if mysource >= 1 and mysource <= 3:
+            # Si son ficheros locales, se almacenan en el directorio uploads
+            files = request.files.getlist("myfiles[]")
 
+            for file in files:
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+            if mysource <= 2:
                 myfolder = app.config['UPLOAD_FOLDER']
-
-        elif mysource == 2:
-            print('directorio')
-            myfolder = request.form["folder"]
-            print(myfolder)
-
-        elif mysource == 3:
-            print('video', request.files)
-            if request.files:
-                video = request.files["video"]
-                video.save(os.path.join(app.config['UPLOAD_FOLDER'], video.filename))
-                myvideo = app.config['UPLOAD_FOLDER'] + '/' + video.filename
-                print(myvideo)
+            elif mysource == 3:
+                myvideos = app.config['UPLOAD_FOLDER']
 
         else:
+            # Si es una conexion TCP en streaming, solo se transmite la IP y el puerto (no se almacena nada)
             print('TCP')
             ip = request.form['tcp_ip']
             port = request.form['tcp_port']
             mystreaming = [ip, port]
 
+        # Comprobamos los parámetros opcionales
         try:
-            myoutput_path = request.form["output_path"]
+            # Checkbox para almacenar resultados
+            myrecord = int(request.form["record"])
+            if myrecord == 0:
+                # Checkbox para guardar resultados está seleccionado -> comprobar directorio results
+                myoutput_path = RESULT_FOLDER
+
+                if not os.path.exists(RESULT_FOLDER):
+                    os.makedirs(RESULT_FOLDER)
+                else:
+                    filelist = [file for file in os.listdir(RESULT_FOLDER)]
+
+                    if len(filelist) > 0:
+                        for file in filelist:
+                            os.remove(os.path.join(RESULT_FOLDER, file))
         except:
             myoutput_path = None
+
         try:
-            myrecord_video = request.form["record_video"]
+            # Comprobar checkbox para crear vídeo a partir de las imagenes generadas por el algoritmo
+            myrecord_video = request.form["create_video"]
         except:
             myrecord_video = 1
 
+        print(myoutput_path, myrecord_video)
         fire_recognizer = FireRecognizer(recognizer_type=mytype, output_path=myoutput_path)
 
         start_time = time.time()
         # iniciar hilo para la detección de incendios
         detection_thread = threading.Thread(target=fire_recognizer.process_path,
-                                            args=(myfolder, myvideo, mystreaming))
+                                            args=(myfolder, myvideos, mystreaming))
         detection_thread.daemon = True
         detection_thread.start()
         # declarar hilo para el almacenamiento de los resultados
@@ -99,15 +122,15 @@ def get_data():
                                          args=(myrecord_video, myoutput_path, start_time))
         record_thread.daemon = True
 
-        return redirect(url_for('index'))
+        return redirect(url_for('visual'))
 
     return render_template('form.html', title='Parameters')
 
 
-@app.route("/visualization")
-def index():
+@app.route("/visualization.html")
+def visual():
     # devuelve la plantilla
-    return render_template("index.html")
+    return render_template("visual.html")
 
 
 @app.route("/video_feed")
@@ -142,10 +165,12 @@ def generate():
         yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' +
                bytearray(encodedImage) + b'\r\n')
 
+
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'),
                                'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
 
 class FireRecognizer:
     """Reconocedor de fuego en imagen térmica."""
@@ -214,7 +239,7 @@ class FireRecognizer:
         else:
             raise NotADirectoryError('Specified data path is not a directory:  ' + str(input_dataset_path))
 
-    @app.route("/visualization")
+    # @app.route("/visualization")
     def recognize_video(self, video_path: str):
         """
         Realiza el reconocimiento del vídeo recibido.
@@ -224,33 +249,39 @@ class FireRecognizer:
         """
         input_video_path = Path(video_path)
 
-        if input_video_path.exists():
-            inputVideo = cv2.VideoCapture(video_path)
-            if not inputVideo.isOpened():
-                print("Error opening video stream or file")
-            else:
-                # width = int(inputVideo.get(cv2.CAP_PROP_FRAME_WIDTH))
-                # height = int(inputVideo.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                print("Total number of frames: %d frames" % (inputVideo.get(cv2.CAP_PROP_FRAME_COUNT)))
-                print("FPS: %d" % (inputVideo.get(cv2.CAP_PROP_FPS)))
-                minutes = int((inputVideo.get(cv2.CAP_PROP_FRAME_COUNT) / inputVideo.get(cv2.CAP_PROP_FPS)) / 60)
-                seconds = int(inputVideo.get(cv2.CAP_PROP_FRAME_COUNT) / inputVideo.get(cv2.CAP_PROP_FPS)) % 60
-                print("Duration of video: " + str(minutes) + " minutes : " + str(seconds) + " seconds")
+        if input_video_path.exists() and input_video_path.is_dir():
+            dataset_video_path = [str(img_path) for img_path in sorted(input_video_path.glob('*.*'),
+                                                                       key=os.path.getmtime)]
+            input_paths = [Path(path) for path in dataset_video_path]
 
-                while inputVideo.isOpened():
-                    ret, frame = inputVideo.read()
-                    if ret:
-                        self.recognize_image(frame=frame)
-                        if cv2.waitKey(1) & 0xFF == ord('q'):
-                            break
+            for number_video, input_video_path in enumerate(input_paths):
+                if input_video_path.exists():
+                    inputVideo = cv2.VideoCapture(dataset_video_path[number_video])
+                    if not inputVideo.isOpened():
+                        print("Error opening video stream or file")
                     else:
-                        return redirect(url_for('form.html'))
-                        break
+                        # width = int(inputVideo.get(cv2.CAP_PROP_FRAME_WIDTH))
+                        # height = int(inputVideo.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                        print("Total number of frames: %d frames" % (inputVideo.get(cv2.CAP_PROP_FRAME_COUNT)))
+                        print("FPS: %d" % (inputVideo.get(cv2.CAP_PROP_FPS)))
+                        minutes = int((inputVideo.get(cv2.CAP_PROP_FRAME_COUNT) / inputVideo.get(cv2.CAP_PROP_FPS)) / 60)
+                        seconds = int(inputVideo.get(cv2.CAP_PROP_FRAME_COUNT) / inputVideo.get(cv2.CAP_PROP_FPS)) % 60
+                        print("Duration of video: " + str(minutes) + " minutes : " + str(seconds) + " seconds")
 
-                inputVideo.release()
+                        while inputVideo.isOpened():
+                            ret, frame = inputVideo.read()
+                            if ret:
+                                self.recognize_image(frame=frame)
+                                if cv2.waitKey(1) & 0xFF == ord('q'):
+                                    break
+                            else:
+                                # return redirect(url_for('form.html'))
+                                break
 
-        elif not input_video_path.exists():
-            raise FileNotFoundError('Specified data video path does not exist: ' + str(input_video_path))
+                        inputVideo.release()
+
+                elif not input_video_path.exists():
+                    raise FileNotFoundError('Specified data video path does not exist: ' + str(input_video_path))
 
     def recognize_streaming(self, params: list):
         """
@@ -372,37 +403,12 @@ class FireRecognizer:
 
 if __name__ == '__main__':
     import argparse
-    # import time
 
     parser = argparse.ArgumentParser()
-    # parser.add_argument("-r", "--record_video", type=int, default=1,
-    #                     help='Record video from images. 0 - Yes record. 1 - No record.')
-    # parser.add_argument("-o", "--output_path", type=str, help='Relative path to the output file.')
     parser.add_argument("-d", "--display", type=str, nargs=2, required=False, default=["localhost", 5000],
                         help='IP address and port for live display. <IP> <PORT>')
-    # parser.add_argument("-t", "--type", type=int, required=True, help='Image type. 1 - Gray, 2 - RAINBOW')
-    # group = parser.add_mutually_exclusive_group(required=True)
-    # group.add_argument("-i", "--images", nargs='+', help='One or more images relative path to recognize.')
-    # group.add_argument("-f", "--folder", type=str, help='Relative folder path with images to recognize.')
-    # group.add_argument("-v", "--video", type=str, help='Video relative path to recognize.')
-    # group.add_argument("-s", "--streaming", type=str, nargs=2,
-    #                    help='IP address and port streaming video over TCP. <IP> <PORT>')
+
     kwargs = parser.parse_args()
 
     # inicio de la aplicación flask para el formulario de parámetros
     app.run(host=kwargs.display[0], port=kwargs.display[1], debug=True, threaded=True, use_reloader=False)
-
-    # start_time = time.time()
-    # # fire_recognizer = FireRecognizer(recognizer_type=kwargs.type, output_path=kwargs.output_path)
-    #
-    # # iniciar hilo para la detección de incendios
-    # detection_thread = threading.Thread(target=fire_recognizer.process_path,
-    #                                     args=(kwargs.folder, kwargs.images, kwargs.video, kwargs.streaming))
-    # detection_thread.daemon = True
-    # detection_thread.start()
-    # # declarar hilo para el almacenamiento de los resultados
-    # record_thread = threading.Thread(target=fire_recognizer.finish, args=(kwargs.record_video, kwargs.output_path))
-    # record_thread.daemon = True
-    #
-    # # inicio de la aplicación flask para la visualización
-    # app.run(host=kwargs.display[0], port=kwargs.display[1], debug=True, threaded=True, use_reloader=False)
