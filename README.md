@@ -25,7 +25,7 @@ pip install -r requirements.txt
 Con esto habría finalizado la instalación y ya se podría usar el sistema.
 
 # Ejecución
-Para ejecutar el sistema FireDetection se debe ejecutar el sigueinte comando desde la raíz del repositorio:
+Para ejecutar el sistema FireDetection se debe ejecutar el siguiente comando desde la raíz del repositorio:
 ```
 start.bat
 ```
