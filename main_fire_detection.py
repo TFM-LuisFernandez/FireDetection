@@ -108,19 +108,18 @@ def get_data():
         except:
             myrecord_video = 1
 
-        print(myoutput_path, myrecord_video)
-        fire_recognizer = FireRecognizer(recognizer_type=mytype, output_path=myoutput_path)
-
         start_time = time.time()
+        fire_recognizer = FireRecognizer(recognizer_type=mytype, output_path=myoutput_path, create_video=myrecord_video,
+                                         start_time=start_time)
         # iniciar hilo para la detección de incendios
         detection_thread = threading.Thread(target=fire_recognizer.process_path,
                                             args=(myfolder, myvideos, mystreaming))
         detection_thread.daemon = True
         detection_thread.start()
         # declarar hilo para el almacenamiento de los resultados
-        record_thread = threading.Thread(target=fire_recognizer.finish,
-                                         args=(myrecord_video, myoutput_path, start_time))
-        record_thread.daemon = True
+        # record_thread = threading.Thread(target=fire_recognizer.finish,
+        #                                  args=(myrecord_video, myoutput_path, start_time))
+        # record_thread.daemon = True
 
         return redirect(url_for('visual'))
 
@@ -175,12 +174,14 @@ def favicon():
 class FireRecognizer:
     """Reconocedor de fuego en imagen térmica."""
 
-    def __init__(self, recognizer_type: int, output_path: str = None):
+    def __init__(self, recognizer_type: int, output_path: str = None, create_video: int = 1, start_time: float = None):
         """
         Crea una instancia del reconocedor de conjuntos de imagenes que utilizara un procesamiento concreto.
 
         :param recognizer_type: identificador del tipo de procesamiento a usar
         :param output_path: ruta donde se debe almacenar los resultados
+        :param create_video: identificador para crear o no vídeo con las imágenes generadas por el algoritmo
+        :param start_time: tiempo de inicio de ejecucion del algoritmo
         :raises NotADirectoryError: si la ruta indicada no es un directorio
         :raises FileNotFoundError: si la ruta indicada no existe
         """
@@ -199,6 +200,8 @@ class FireRecognizer:
             else:
                 raise NotADirectoryError('Specified data output_path is not a directory:  ' + str(output_dataset_path))
 
+        self.create_video = create_video
+        self.start_time = start_time
         self.buffer_images = list()
         self.total_images = 0
 
@@ -276,6 +279,7 @@ class FireRecognizer:
                                     break
                             else:
                                 # return redirect(url_for('form.html'))
+                                self.finish(record=self.create_video, path=self.output_path, start_time=self.start_time)
                                 break
 
                         inputVideo.release()
@@ -304,6 +308,7 @@ class FireRecognizer:
                 while len(bits_image) < BUFFER_IMAGE:
                     bits_image += s.recv(2 ** 20)
                     if size_bits == len(bits_image):
+                        self.finish(record=self.create_video, path=self.output_path, start_time=self.start_time)
                         raise ConnectionError('No client data received')
 
                 frame = np.array(Image.frombytes("L", (640, 512), bits_image))
@@ -340,13 +345,14 @@ class FireRecognizer:
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
+        self.finish(record=self.create_video, path=self.output_path, start_time=self.start_time)
+
     def recognize_image(self, image_path: str = None, frame: np.array = None):
         """
         Realiza el reconocimiento de la ruta de las imágene recibida y añade a output_images los resultados obtenidos.
 
         :param image_path: ruta de la imagen a reconocer
-        :param frame_local: imagen a reconocer en local (paleta de falso color)
-        :param frame_stream: imagen a reconocer en streaming
+        :param frame: imagen a reconocer procedente de un video o una conexión TCP
         :raises FileNotFoundError: si la ruta indicada no existe
         """
         global outputFrame, lock
