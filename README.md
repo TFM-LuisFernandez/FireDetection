@@ -31,4 +31,9 @@ start.bat
 ```
 También se podría ejecutar haciendo doble click sobre el fichero **start.bat**.
 
+Una tercera opción sería invocarlo desde un terminal, accediendo al directorio del ssistema FireDetection, oporcionando una dirección IP y Puerto como se muestra acontinuación:
+```
+python main_fire_detection.py -d <IP> <PUERTO>
+```
+
 Una vez iniciado el contenedor Docker hay que navegar a la siguiente dirección para usar el sistema: http://127.0.0.1:5000/index.html
