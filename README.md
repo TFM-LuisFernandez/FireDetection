@@ -31,7 +31,7 @@ start.bat
 ```
 También se podría ejecutar haciendo doble click sobre el fichero **start.bat**.
 
-Una tercera opción sería invocarlo desde un terminal, accediendo al directorio del ssistema FireDetection, oporcionando una dirección IP y Puerto como se muestra acontinuación:
+Una tercera opción sería invocarlo desde un terminal, accediendo al directorio del ssistema FireDetection, proporcionando una dirección IP y Puerto como se muestra acontinuación:
 ```
 python main_fire_detection.py -d <IP> <PUERTO>
 ```
