@@ -1,20 +1,22 @@
-from firedetection_core.fire_recognition import Recognizer
-from firedetection_core.fire_visualization import FireVisualize
-from firedetection_core.fire_record import FireRecord
-
+import os
+import shutil
 import socket
 import threading
-import cv2
-import os
-import numpy as np
+import mysql.connector
 import time
-
-from PIL import Image
+from datetime import datetime
 from pathlib import Path
 from typing import List
-from datetime import datetime
+
+import cv2
+import numpy as np
+from PIL import Image
 from flask import Flask, render_template, Response, request, redirect, url_for, send_from_directory
 from werkzeug.utils import secure_filename
+
+from firedetection_core.fire_recognition import Recognizer
+from firedetection_core.fire_record import FireRecord
+from firedetection_core.fire_visualization import FireVisualize
 
 # from numba import jit, cuda
 
@@ -86,26 +88,34 @@ def get_data():
         # Comprobamos los parámetros opcionales
         try:
             # Checkbox para almacenar resultados
-            myrecord = int(request.form["record"])
-            if myrecord == 0:
-                # Checkbox para guardar resultados está seleccionado -> comprobar directorio results
-                myoutput_path = RESULT_FOLDER
+            int(request.form["record"])
+            # Checkbox para guardar resultados está seleccionado -> comprobar directorio results
+            myoutput_path = RESULT_FOLDER
 
-                if not os.path.exists(RESULT_FOLDER):
-                    os.makedirs(RESULT_FOLDER)
-                else:
-                    filelist = [file for file in os.listdir(RESULT_FOLDER)]
-
-                    if len(filelist) > 0:
-                        for file in filelist:
-                            os.remove(os.path.join(RESULT_FOLDER, file))
-        except:
+            if not os.path.exists(RESULT_FOLDER):
+                os.makedirs(RESULT_FOLDER)
+            else:
+                # file_list = [file for file in os.listdir(RESULT_FOLDER)]
+                #
+                # if len(file_list) > 0:
+                #     for file in file_list:
+                #         os.remove(os.path.join(RESULT_FOLDER, file))
+                for filename in os.listdir(RESULT_FOLDER):
+                    file_path = os.path.join(RESULT_FOLDER, filename)
+                    try:
+                        if os.path.isfile(file_path) or os.path.islink(file_path):
+                            os.unlink(file_path)
+                        elif os.path.isdir(file_path):
+                            shutil.rmtree(file_path)
+                    except Exception as e:
+                        print('Failed to delete %s. Reason: %s' % (file_path, e))
+        except ConnectionError:
             myoutput_path = None
 
         try:
             # Comprobar checkbox para crear vídeo a partir de las imagenes generadas por el algoritmo
-            myrecord_video = request.form["create_video"]
-        except:
+            myrecord_video = int(request.form["create_video"])
+        except ConnectionError:
             myrecord_video = 1
 
         start_time = time.time()
@@ -204,10 +214,32 @@ class FireRecognizer:
         self.start_time = start_time
         self.buffer_images = list()
         self.total_images = 0
+        try:
+            self.connection = mysql.connector.connect(host='127.0.0.1',
+                                                      database='firedetection_bbdd',
+                                                      user='FireDetection',
+                                                      password='firedetection')
+            if self.connection.is_connected():
+                # comprobar y obtener informacion de la conexión con la bbdd
+                db_info = self.connection.get_server_info()
+                print("Connected to MySQL Server version ", db_info)
+                self.cursor = self.connection.cursor()
+                self.cursor.execute("select database();")
+                record = self.cursor.fetchone()
+                print("You're connected to database: ", record)
+                # ver campos de la tabla
+                self.cursor.execute("SHOW columns FROM imagenes")
+                print([column[0] for column in self.cursor.fetchall()])
+                # vaciar contenido de la tabla
+                self.cursor.execute("TRUNCATE TABLE imagenes")
+
+
+        except mysql.connector.Error as e:
+            raise ConnectionError("Error while connecting to MySQL", e)
 
     def process_path(self, folder_path: str = None, video_path: str = None, streaming_params: list = None):
         """
-        Realiza el reconocimiento de todas las imágenes presentes en una carpeta o de todas las rutas a imágenes recibida.
+        Realiza el tratamiento de la fuente recibida.
 
         :param folder_path: ruta relativa de la carpeta con imágenes a reconocer
         :param video_path: ruta relativa del video a reconocer
@@ -259,20 +291,22 @@ class FireRecognizer:
 
             for number_video, input_video_path in enumerate(input_paths):
                 if input_video_path.exists():
-                    inputVideo = cv2.VideoCapture(dataset_video_path[number_video])
-                    if not inputVideo.isOpened():
+                    input_video = cv2.VideoCapture(dataset_video_path[number_video])
+                    if not input_video.isOpened():
                         print("Error opening video stream or file")
                     else:
-                        # width = int(inputVideo.get(cv2.CAP_PROP_FRAME_WIDTH))
-                        # height = int(inputVideo.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                        print("Total number of frames: %d frames" % (inputVideo.get(cv2.CAP_PROP_FRAME_COUNT)))
-                        print("FPS: %d" % (inputVideo.get(cv2.CAP_PROP_FPS)))
-                        minutes = int((inputVideo.get(cv2.CAP_PROP_FRAME_COUNT) / inputVideo.get(cv2.CAP_PROP_FPS)) / 60)
-                        seconds = int(inputVideo.get(cv2.CAP_PROP_FRAME_COUNT) / inputVideo.get(cv2.CAP_PROP_FPS)) % 60
+                        # width = int(input_video.get(cv2.CAP_PROP_FRAME_WIDTH))
+                        # height = int(input_video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                        print("Total number of frames: %d frames" % (input_video.get(cv2.CAP_PROP_FRAME_COUNT)))
+                        print("FPS: %d" % (input_video.get(cv2.CAP_PROP_FPS)))
+                        minutes = int(
+                            (input_video.get(cv2.CAP_PROP_FRAME_COUNT) / input_video.get(cv2.CAP_PROP_FPS)) / 60)
+                        seconds = int(
+                            input_video.get(cv2.CAP_PROP_FRAME_COUNT) / input_video.get(cv2.CAP_PROP_FPS)) % 60
                         print("Duration of video: " + str(minutes) + " minutes : " + str(seconds) + " seconds")
 
-                        while inputVideo.isOpened():
-                            ret, frame = inputVideo.read()
+                        while input_video.isOpened():
+                            ret, frame = input_video.read()
                             if ret:
                                 self.recognize_image(frame=frame)
                                 if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -282,7 +316,7 @@ class FireRecognizer:
                                 self.finish(record=self.create_video, path=self.output_path, start_time=self.start_time)
                                 break
 
-                        inputVideo.release()
+                        input_video.release()
 
                 elif not input_video_path.exists():
                     raise FileNotFoundError('Specified data video path does not exist: ' + str(input_video_path))
@@ -294,18 +328,18 @@ class FireRecognizer:
         :param params: Dirección y Puerto desde donde se reciben las imágenes a reconocer
         :raises ConnectionRefusedError:  no se puede establecer una conexión con los parámetros establecidos
         """
-        TCP_IP = params[0]
-        TCP_PORT = int(params[1])
-        BUFFER_IMAGE = 640 * 512  # height * width * 2 -> 16 bits
+        tcp_ip = params[0]
+        tcp_port = int(params[1])
+        buffer_image = 640 * 512  # height * width * 2 -> 16 bits
 
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
-            s.connect((TCP_IP, TCP_PORT))
+            s.connect((tcp_ip, tcp_port))
 
             while True:
                 bits_image = b''
                 size_bits = len(bits_image)
-                while len(bits_image) < BUFFER_IMAGE:
+                while len(bits_image) < buffer_image:
                     bits_image += s.recv(2 ** 20)
                     if size_bits == len(bits_image):
                         self.finish(record=self.create_video, path=self.output_path, start_time=self.start_time)
@@ -320,9 +354,9 @@ class FireRecognizer:
                     break
 
             s.close()
-        except:
+        except ConnectionError:
             raise ConnectionRefusedError('Cannot establish TCP connection with %s address and port %d'
-                                         % (TCP_IP, TCP_PORT))
+                                         % (tcp_ip, tcp_port))
 
     def recognize_images(self, images_path: List[str]):
         """
@@ -369,21 +403,46 @@ class FireRecognizer:
         # st = time.time()
         self.buffer_images.append(frame)
         if len(self.buffer_images) == 3:
-            # cv2.imshow('buffer_entrada', cv2.hconcat([self.buffer_images[0], self.buffer_images[1], self.buffer_images[2]]))
+            # cv2.imshow('buffer_entrada', cv2.hconcat([self.buffer_images[0], self.buffer_images[1],
+            # self.buffer_images[2]]))
             # cv2.waitKey()
             # cv2.destroyAllWindows()
+
+            # Procesamiento deteccion de incendios
             fire_results = self.recognizer.recognize_image(buffer=self.buffer_images)
 
             # et = time.time()
             # print(et - st)  # tiempo procesamiento 1 buffer
+
+            # imagenes resultantes del procesamiento
             result_image, mask_image = self.visualizer.visualize_restult(image=fire_results['roi'],
                                                                          contours=fire_results['features']['contours'],
                                                                          centroids=fire_results['features']
-                                                                                               ['centroids'])
-
+                                                                         ['centroids'])
+            # visualización flask
             with lock:
                 outputFrame = cv2.hconcat([result_image, mask_image])
 
+            # almacenamiento mysql
+            result_image_bytes = cv2.imencode(".jpg", result_image)[1].tobytes()
+            mask_image_bytes = cv2.imencode(".jpg", mask_image)[1].tobytes()
+
+            add_image = "INSERT INTO imagenes (id, name, result, mask, time, detection) VALUES (%s, %s, %s, %s, %s, %s)"
+
+            data_image = (self.total_images, str(self.total_images) + '.jpg', result_image_bytes, mask_image_bytes,
+                          datetime.now(), fire_results['detection'])
+
+            self.cursor.execute(add_image, data_image)
+
+            self.connection.commit()
+
+            # self.cursor.execute("SELECT * FROM imagenes")
+            # record = self.cursor.fetchall()
+            # print(record)
+            # for row in record:
+            #     print(row)
+
+            # almacenamiento local
             if self.output_path is not None:
                 json_file = {'identifier': str(self.total_images) + '.jpg',
                              'detection': fire_results['detection'],
@@ -398,6 +457,9 @@ class FireRecognizer:
             self.total_images += 1
 
     def finish(self, record: int = 1, path: str = None, start_time: float = None):
+        self.cursor.close()
+        self.connection.close()
+        print("MySQL connection is closed")
         print('--- Processed images: %d images ---' % self.total_images),
         print('--- Processing time: ' + str(int((time.time() - start_time) / 60)) + ' minutes : ' +
               str(int((time.time() - start_time) % 60)) + ' seconds ---')
