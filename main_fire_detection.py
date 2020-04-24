@@ -86,36 +86,32 @@ def get_data():
             mystreaming = [ip, port]
 
         # Comprobamos los parámetros opcionales
-        try:
-            # Checkbox para almacenar resultados
-            int(request.form["record"])
-            # Checkbox para guardar resultados está seleccionado -> comprobar directorio results
-            myoutput_path = RESULT_FOLDER
+        if "record" in request.form.keys():
+            if int(request.form["record"]) == 0:
+                # Checkbox para guardar resultados está seleccionado -> comprobar directorio results
+                myoutput_path = RESULT_FOLDER
 
-            if not os.path.exists(RESULT_FOLDER):
-                os.makedirs(RESULT_FOLDER)
+                if not os.path.exists(RESULT_FOLDER):
+                    os.makedirs(RESULT_FOLDER)
+                else:
+                    for filename in os.listdir(RESULT_FOLDER):
+                        file_path = os.path.join(RESULT_FOLDER, filename)
+                        try:
+                            if os.path.isfile(file_path) or os.path.islink(file_path):
+                                os.unlink(file_path)
+                            elif os.path.isdir(file_path):
+                                shutil.rmtree(file_path)
+                        except Exception as e:
+                            print('Failed to delete %s. Reason: %s' % (file_path, e))
             else:
-                # file_list = [file for file in os.listdir(RESULT_FOLDER)]
-                #
-                # if len(file_list) > 0:
-                #     for file in file_list:
-                #         os.remove(os.path.join(RESULT_FOLDER, file))
-                for filename in os.listdir(RESULT_FOLDER):
-                    file_path = os.path.join(RESULT_FOLDER, filename)
-                    try:
-                        if os.path.isfile(file_path) or os.path.islink(file_path):
-                            os.unlink(file_path)
-                        elif os.path.isdir(file_path):
-                            shutil.rmtree(file_path)
-                    except Exception as e:
-                        print('Failed to delete %s. Reason: %s' % (file_path, e))
-        except ConnectionError:
+                myoutput_path = None
+        else:
             myoutput_path = None
 
-        try:
+        if "create_video" in request.form.keys():
             # Comprobar checkbox para crear vídeo a partir de las imagenes generadas por el algoritmo
             myrecord_video = int(request.form["create_video"])
-        except ConnectionError:
+        else:
             myrecord_video = 1
 
         start_time = time.time()
