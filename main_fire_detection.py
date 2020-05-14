@@ -223,12 +223,17 @@ class FireRecognizer:
                 self.cursor.execute("select database();")
                 record = self.cursor.fetchone()
                 print("You're connected to database: ", record)
-                # ver campos de la tabla
+                # ver campos de la tabla imagenes
                 self.cursor.execute("SHOW columns FROM imagenes")
                 print([column[0] for column in self.cursor.fetchall()])
-                # vaciar contenido de la tabla
-                self.cursor.execute("TRUNCATE TABLE imagenes")
-
+                # vaciar contenido de la tabla imagenes
+                self.cursor.execute('SELECT * FROM imagenes')
+                if self.cursor.rowcount > 0:
+                    self.cursor.execute("TRUNCATE TABLE imagenes")
+                # vaciar contenido de la tabla parametros
+                self.cursor.execute('SELECT * FROM parametros')
+                if self.cursor.rowcount > 0:
+                    self.cursor.execute("TRUNCATE TABLE parametros")
 
         except mysql.connector.Error as e:
             raise ConnectionError("Error while connecting to MySQL", e)
@@ -424,11 +429,28 @@ class FireRecognizer:
             mask_image_bytes = cv2.imencode(".jpg", mask_image)[1].tobytes()
 
             add_image = "INSERT INTO imagenes (id, name, result, mask, time, detection) VALUES (%s, %s, %s, %s, %s, %s)"
+            add_region = ("INSERT INTO parametros "
+                          "(id, area, bd, cx, cy, imagenes_id) "
+                          "VALUES (%(id)s, %(area)s, %(bd)s, %(cx)s, %(cy)s, %(imagenes_id)s)")
 
             data_image = (self.total_images, str(self.total_images) + '.jpg', result_image_bytes, mask_image_bytes,
                           datetime.now(), fire_results['detection'])
 
             self.cursor.execute(add_image, data_image)
+
+            if len(fire_results['features']['contours']) > 0:
+                image_id = self.cursor.lastrowid
+
+                for region in range(len(fire_results['features']['contours'])):
+                    data_region = {
+                        'id': region,
+                        'area': fire_results['features']['area'][region],
+                        'bd': fire_results['features']['bd'][region],
+                        'cx': fire_results['features']['centroids'][region][0],
+                        'cy': fire_results['features']['centroids'][region][1],
+                        'imagenes_id': image_id,
+                    }
+                    self.cursor.execute(add_region, data_region)
 
             self.connection.commit()
 
