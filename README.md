@@ -15,8 +15,8 @@ Antes de poder utilizar el sistema FireDetection es imperativo crear la BBDD par
 1) Crear en MySQL Workbench una nueva conexión con el usuario "FireDetection" con la contraseña "firedetection".
 2) Acceder a la nueva conexión creada y crear la BBDD "firedetection_bbdd".
 3) Crear 2 tablas: "imagenes" y "parametros".
-4) Contenido de la tabla imagenes: id(int), name(varchar(50)), result(longblob), mask(longblob), time(datetime), detection(varchar(20).
-5) Contenido de la tabla parametros: id(int), area(int), bd(float), cx(int), cy(int), imagenes_id(int)
+4) Campos de la tabla imagenes: id(int), name(varchar(50)), result(longblob), mask(longblob), time(datetime), detection(varchar(20).
+5) Campos de la tabla parametros: id(int), area(int), bd(float), cx(int), cy(int), imagenes_id(int)
 6) Establecer una conexión 1(imagenes):n(parametros)
 ```
 
