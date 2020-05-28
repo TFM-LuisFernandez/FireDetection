@@ -12,7 +12,7 @@ Para la correcta ejecución del sistema son necesarias las siguientes dependenci
 ## Crear BBDD MySQL
 Antes de poder utilizar el sistema FireDetection es imperativo crear la BBDD para el correcto funcionamiento del sistema.
 
-![MySQL_Image](C:/Users/luisf/Downloads/10_2_mysql_modelo_2.png)
+![image](C:/Users/luisf/Downloads/10_2_mysql_modelo_2.png)
 ## Descarga del sistema e instalación de dependencias de Python (comunes a todos los sistema operativos)
 Una vez resueltas las dependencias anteriores, para descargar el sistema se debe ejecutar:
 
