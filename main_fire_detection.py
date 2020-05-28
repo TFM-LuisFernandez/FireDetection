@@ -57,6 +57,7 @@ def get_data():
     Recibe del formulario, mediante POST, los parametros del algoritmo junto con los ficheros de subida
     """
     if request.method == "POST":
+        start_time = time.time()
         # Recibimos el tipo de imagenes y el tipo de fuente
         mytype = int(request.form["mytype"])
         mysource = int(request.form["mysource"])
@@ -86,35 +87,38 @@ def get_data():
             mystreaming = [ip, port]
 
         # Comprobamos los parámetros opcionales
-        if "record" in request.form.keys():
-            if int(request.form["record"]) == 0:
-                # Checkbox para guardar resultados está seleccionado -> comprobar directorio results
-                myoutput_path = RESULT_FOLDER
+        try:
+            # Checkbox para almacenar resultados
+            int(request.form["record"])
+            # Checkbox para guardar resultados está seleccionado -> comprobar directorio results
+            myoutput_path = RESULT_FOLDER
 
-                if not os.path.exists(RESULT_FOLDER):
-                    os.makedirs(RESULT_FOLDER)
-                else:
-                    for filename in os.listdir(RESULT_FOLDER):
-                        file_path = os.path.join(RESULT_FOLDER, filename)
-                        try:
-                            if os.path.isfile(file_path) or os.path.islink(file_path):
-                                os.unlink(file_path)
-                            elif os.path.isdir(file_path):
-                                shutil.rmtree(file_path)
-                        except Exception as e:
-                            print('Failed to delete %s. Reason: %s' % (file_path, e))
+            if not os.path.exists(RESULT_FOLDER):
+                os.makedirs(RESULT_FOLDER)
             else:
-                myoutput_path = None
-        else:
+                # file_list = [file for file in os.listdir(RESULT_FOLDER)]
+                #
+                # if len(file_list) > 0:
+                #     for file in file_list:
+                #         os.remove(os.path.join(RESULT_FOLDER, file))
+                for filename in os.listdir(RESULT_FOLDER):
+                    file_path = os.path.join(RESULT_FOLDER, filename)
+                    try:
+                        if os.path.isfile(file_path) or os.path.islink(file_path):
+                            os.unlink(file_path)
+                        elif os.path.isdir(file_path):
+                            shutil.rmtree(file_path)
+                    except Exception as e:
+                        print('Failed to delete %s. Reason: %s' % (file_path, e))
+        except:
             myoutput_path = None
 
-        if "create_video" in request.form.keys():
+        try:
             # Comprobar checkbox para crear vídeo a partir de las imagenes generadas por el algoritmo
             myrecord_video = int(request.form["create_video"])
-        else:
+        except:
             myrecord_video = 1
 
-        start_time = time.time()
         fire_recognizer = FireRecognizer(recognizer_type=mytype, output_path=myoutput_path, create_video=myrecord_video,
                                          start_time=start_time)
         # iniciar hilo para la detección de incendios
@@ -210,6 +214,7 @@ class FireRecognizer:
         self.start_time = start_time
         self.buffer_images = list()
         self.total_images = 0
+        self.total_regions = 0
         try:
             self.connection = mysql.connector.connect(host='127.0.0.1',
                                                       database='firedetection_bbdd',
@@ -223,17 +228,16 @@ class FireRecognizer:
                 self.cursor.execute("select database();")
                 record = self.cursor.fetchone()
                 print("You're connected to database: ", record)
-                # ver campos de la tabla imagenes
-                self.cursor.execute("SHOW columns FROM imagenes")
-                print([column[0] for column in self.cursor.fetchall()])
-                # vaciar contenido de la tabla imagenes
+                # ver campos de la tabla
+                # self.cursor.execute("SHOW columns FROM imagenes")
+                # print([column[0] for column in self.cursor.fetchall()])
+                # vaciar contenido de la tabla
                 self.cursor.execute('SELECT * FROM imagenes')
+                self.cursor.fetchall()
+                # print(self.cursor.fetchall(), self.cursor.rowcount)
                 if self.cursor.rowcount > 0:
                     self.cursor.execute("TRUNCATE TABLE imagenes")
-                # vaciar contenido de la tabla parametros
-                self.cursor.execute('SELECT * FROM parametros')
-                if self.cursor.rowcount > 0:
-                    self.cursor.execute("TRUNCATE TABLE parametros")
+
 
         except mysql.connector.Error as e:
             raise ConnectionError("Error while connecting to MySQL", e)
@@ -439,18 +443,19 @@ class FireRecognizer:
             self.cursor.execute(add_image, data_image)
 
             if len(fire_results['features']['contours']) > 0:
-                image_id = self.cursor.lastrowid
+                # image_id = self.cursor.lastrowid
 
                 for region in range(len(fire_results['features']['contours'])):
                     data_region = {
-                        'id': region,
+                        'id': self.total_regions,
                         'area': fire_results['features']['area'][region],
                         'bd': fire_results['features']['bd'][region],
                         'cx': fire_results['features']['centroids'][region][0],
                         'cy': fire_results['features']['centroids'][region][1],
-                        'imagenes_id': image_id,
+                        'imagenes_id': self.total_images,
                     }
                     self.cursor.execute(add_region, data_region)
+                    self.total_regions += 1
 
             self.connection.commit()
 
@@ -478,7 +483,8 @@ class FireRecognizer:
         self.cursor.close()
         self.connection.close()
         print("MySQL connection is closed")
-        print('--- Processed images: %d images ---' % self.total_images),
+        print('--- Processed images: %d images ---' % self.total_images)
+        print(time.time() - start_time)
         print('--- Processing time: ' + str(int((time.time() - start_time) / 60)) + ' minutes : ' +
               str(int((time.time() - start_time) % 60)) + ' seconds ---')
 

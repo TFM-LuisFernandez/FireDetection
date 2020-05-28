@@ -77,7 +77,8 @@ class Recognizer(FireRecognizer):
             # claisificación de las regiones candidatas por sus caracteristicas
             fire_detection['features'] = self.fire_classification.classifying_fire(features=features)
         else:
-            fire_detection['features'] = {'contours': list(), 'centroids': list()}
+            fire_detection['features'] = {'contours': list(), 'bd': list(), 'area': list(), 'centroids': list(),
+                                          'mean': list()}
 
         if len(fire_detection['features']['contours']) > 0:
             fire_detection['detection'] = 'Fire Detected'
