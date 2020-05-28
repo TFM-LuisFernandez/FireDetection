@@ -6,7 +6,8 @@ FireDetection es un sistema destinado a complementar la motorización de incendi
 Para la correcta ejecución del sistema son necesarias las siguientes dependencias específicas para cada sistema operativo:
 
 - Python 3.7 (su instalación depende del sistema operativo, consultar https://www.python.org/downloads/)
-- MySQL 8.0 (instalar MySQL Workbench también, consultar https://dev.mysql.com/downloads/installer/)
+- MySQL 8.0 (consultar https://dev.mysql.com/downloads/installer/)
+- MySQL Workbench (consultar https://dev.mysql.com/downloads/workbench/)
 - Git (consultar https://gist.github.com/derhuerst/1b15ff4652a867391f03)
 
 ## Crear BBDD MySQL
