@@ -8,6 +8,7 @@ Para la correcta ejecución del sistema son necesarias las siguientes dependenci
 - Python 3.7 (su instalación depende del sistema operativo, consultar https://www.python.org/downloads/)
 - MySQL 8.0 (consultar https://dev.mysql.com/downloads/installer/)
 - MySQL Workbench (consultar https://dev.mysql.com/downloads/workbench/)
+- LabVIEW (consultar https://www.ni.com/es-es/support/downloads/software-products/download.labview.html#346254)
 - Git (consultar https://gist.github.com/derhuerst/1b15ff4652a867391f03)
 
 ## Crear BBDD MySQL
@@ -38,6 +39,16 @@ pip install -r requirements.txt
 Con esto habría finalizado la instalación y ya se podría usar el sistema.
 
 # Ejecución
+Para ejecitar el software de adquisición de imágenes térmicas de LabVIEW, se debe abrir el fichero "Labview_FLIR_A65_TCP.vi", establecer los parámetros de configuración como se indica a continuación:
+  * FrameRate: NTSC30HZ
+  * IRFormat: HighGainMode
+  * Ring: Mono 8
+  ---
+  **NOTE**
+
+  Estos parámetros son los adecuados para la cámara FLIR A65
+
+  ---
 Para ejecutar el sistema FireDetection se debe ejecutar el siguiente comando desde la raíz del repositorio:
 ```
 start.bat
