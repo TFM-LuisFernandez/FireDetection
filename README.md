@@ -44,11 +44,11 @@ Para ejecitar el software de adquisición de imágenes térmicas de LabVIEW, se 
   * IRFormat: HighGainMode
   * Ring: Mono 8
   ---
-  **NOTE**
-
-  Estos parámetros son los adecuados para la cámara FLIR A65
-
+  
+  **NOTA:**  Estos parámetros son los adecuados para la cámara FLIR A65
+  
   ---
+  
 Para ejecutar el sistema FireDetection se debe ejecutar el siguiente comando desde la raíz del repositorio:
 ```
 start.bat
