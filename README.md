@@ -39,7 +39,7 @@ pip install -r requirements.txt
 Con esto habría finalizado la instalación y ya se podría usar el sistema.
 
 # Ejecución
-Para ejecitar el software de adquisición de imágenes térmicas de LabVIEW, se debe abrir el fichero "Labview_FLIR_A65_TCP.vi", establecer los parámetros de configuración como se indica a continuación:
+Para ejecutar el software de adquisición de imágenes térmicas de LabVIEW, se debe abrir el fichero "Labview_FLIR_A65_TCP.vi", establecer los parámetros de configuración como se indica a continuación:
   * FrameRate: NTSC30HZ
   * IRFormat: HighGainMode
   * Ring: Mono 8
@@ -48,7 +48,8 @@ Para ejecitar el software de adquisición de imágenes térmicas de LabVIEW, se 
   **NOTA:**  Estos parámetros son los adecuados para la cámara FLIR A65
   
   ---
-  
+Por último, ejecutar el software y ver que no aparece ningún error de ejecución.
+
 Para ejecutar el sistema FireDetection se debe ejecutar el siguiente comando desde la raíz del repositorio:
 ```
 start.bat
