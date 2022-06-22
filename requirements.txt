@@ -1,6 +1,6 @@
 Flask==1.1.1
 mysql-connector-python==8.0.19
-numpy==1.16.2
+numpy==1.22.0
 opencv-python==4.2.0.32
 pep257==0.7.0
 Pillow==6.0.0
